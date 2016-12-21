@@ -286,11 +286,10 @@ module NetworkLearning =
         { learning with network = network }
 
 
-module TravelingSalesmanProblem =
+module TravelingSantaProblem =
 
-    type TravelingSalesmanProblem(neurons:int, learningRate:float, cities:(float*float)[]) =
+    type TravelingSantaProblem(neurons:int, learningRate:float, cities:(float*float)[]) =
         
-        let pathEvent = Event<int * (float * float)[]>() 
         let asyncSeq = FSharp.Control.AsyncSeq.AsyncSeqBuilder()
 
         let foundBestPath iterations = asyncSeq {
@@ -343,12 +342,11 @@ module TravelingSalesmanProblem =
 
         member this.Execute = foundBestPath
 
-open TravelingSalesmanProblem
+open TravelingSantaProblem
 
 type MainViewModel() as this = 
     inherit ViewModelBase()
 
-    let rand = new Random()
 
     let mutable cts = new CancellationTokenSource()
 
@@ -415,7 +413,7 @@ type MainViewModel() as this =
                                                      let updateControl = updateCtrl ui
                                                      let! cities = mapAgent.PostAndAsyncReply(fun ch -> GetMap(cities.Value, ch))
                                                      
-                                                     let tsp = TravelingSalesmanProblem(neurons.Value,learningRate.Value,cities)                                                         
+                                                     let tsp = TravelingSantaProblem(neurons.Value,learningRate.Value,cities)                                                         
                                                      for (i, path) in tsp.Execute (iterations.Value) do
                                                            do! updateControl i path
                                                      this.ExecutionTime <- sprintf "Time %d ms" time.ElapsedMilliseconds}), token=cts.Token, onCancel=onCancel)
