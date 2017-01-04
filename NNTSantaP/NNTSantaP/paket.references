@@ -1,0 +1,8 @@
+Expression.Blend.Sdk
+FSharp.Charting
+FSharp.Collections.ParallelSeq
+FSharp.Control.AsyncSeq
+FSharp.Control.Reactive
+FSharp.ViewModule.Core
+FsXaml.Wpf
+PerfUtil

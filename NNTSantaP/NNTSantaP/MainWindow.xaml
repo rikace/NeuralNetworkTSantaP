@@ -1,14 +1,13 @@
 ﻿<Window
 		xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-		xmlns:local="clr-namespace:Views;assembly=FastNeuro"    
-        xmlns:vms="clr-namespace:ViewModels;assembly=FastNeuro"    
+		xmlns:local="clr-namespace:Views;assembly=NNTSantaP"
+        xmlns:vms="clr-namespace:ViewModels;assembly=NNTSantaP"
         xmlns:fsxaml="http://github.com/fsprojects/FsXaml"
-        xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"   
+        xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
         xmlns:wf="clr-namespace:System.Windows.Forms;assembly=System.Windows.Forms"
-        xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"    
-        xmlns:ctrl="clr-namespace:AForge.Controls;assembly=AForge.Controls"
-    
+        xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+
 		Title="MainWindow" Height="500" Width="750" WindowStartupLocation="CenterScreen">
     <Window.DataContext>
         <vms:MainViewModel />
@@ -81,7 +80,7 @@
             <Button Grid.Row="5" Grid.ColumnSpan="2" Command="{Binding InitPointsCommand}" CommandParameter="{Binding Cities}" >Initialize</Button>
             <Button Grid.Row="6" Grid.ColumnSpan="2" Command="{Binding StartCommand}">Start</Button>
             <Button Grid.Row="7" Grid.ColumnSpan="2" Command="{Binding CancelCommand}" CommandParameter="{Binding Cities}" >Cancel</Button>
-            
+
 
         </Grid>
     </Grid>

@@ -19,45 +19,45 @@ open FSharp.Control.Reactive
 
 
 [<AutoOpen>]
-module Utilities = 
+module Utilities =
     let rand = new Random(int DateTime.Now.Ticks)
-    
+
     type RandMessage =
         | GetMap of int * AsyncReplyChannel<(float * float)[]>
         | SetMap of int * AsyncReplyChannel<(float * float)[]>
 
-    let mapAgent = 
-        MailboxProcessor.Start(fun inbox -> 
+    let mapAgent =
+        MailboxProcessor.Start(fun inbox ->
             let random = new Random(int DateTime.Now.Ticks)
             let initMap n = Array.init n (fun _ -> random.Next(1001) |> float, random.Next(1001) |> float)
-            let rec loop map = 
-                async { 
+            let rec loop map =
+                async {
                     let! msg = inbox.Receive()
                     match msg with
                     | GetMap(n, reply) ->
-                        let map = 
-                            match map with 
+                        let map =
+                            match map with
                             | [||] -> initMap n
                             | _ -> map
                         reply.Reply(map)
                         return! loop map
                     | SetMap(n, reply) ->
-                        let map = initMap n 
+                        let map = initMap n
                         reply.Reply(map)
                         return! loop map
                 }
             loop (initMap 0))
 
-module ActivationFunction = 
+module ActivationFunction =
     ///                2
     /// f(x) = ------------------ - 1
     ///        1 + exp(-alpha * x)
-    let bipolarSigmoidFunction (alpha:float) n = (2. / ( 1. + exp( -alpha * n ))) - 1. 
+    let bipolarSigmoidFunction (alpha:float) n = (2. / ( 1. + exp( -alpha * n ))) - 1.
 
     ///           2 * alpha * exp(-alpha * x )
     /// f'(x) = -------------------------------- = alpha * (1 - f(x)^2) / 2
     ///           (1 + exp(-alpha * x))^2
-    let bipolarSigmoidDerivative (alpha:float) n = 
+    let bipolarSigmoidDerivative (alpha:float) n =
         let y = bipolarSigmoidFunction alpha n
         alpha * ( 1. - y * y ) / 2.
 
@@ -69,7 +69,7 @@ module ActivationFunction =
     ///           alpha * exp(-alpha * x )
     /// f'(x) = ---------------------------- = alpha * f(x) * (1 - f(x))
     ///           (1 + exp(-alpha * x))^2
-    let sigmoidDerivative (alpha:float) n = 
+    let sigmoidDerivative (alpha:float) n =
         let y = sigmoidFunction alpha n
         alpha * y * (1. - y)
 
@@ -81,43 +81,43 @@ type Activation = { Function : float -> float -> float
                     RandomWeight : unit -> float }
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix )>]
-module Activation = 
+module Activation =
     let rand = new Random(int DateTime.Now.Ticks)
 
-    let public sigmoidActivation = 
+    let public sigmoidActivation =
        { Function =ActivationFunction.sigmoidFunction
          Derivative = ActivationFunction.sigmoidDerivative
          RandomWeight = (fun () -> rand.NextDouble())    }
 
-    let public bipolarSigmoidActivation = 
+    let public bipolarSigmoidActivation =
        { Function =ActivationFunction.bipolarSigmoidFunction
          Derivative = ActivationFunction.bipolarSigmoidDerivative
          RandomWeight = (fun () -> rand.NextDouble())    }
 
 //[<Struct>]
-type Neuron = 
+type Neuron =
     { inputsCount : int
       output:float
       threshold:float
       weights : float array }
     member this.item n = this.weights |> Array.item n
-    
+
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix )>]
 module Neuron =
     let [<Literal>] private rangeLen = 1000.
 
-    let create (inputs : int) = 
+    let create (inputs : int) =
         let inputs = max 1 inputs
         { inputsCount = inputs
-          threshold = rand.NextDouble() * rangeLen  
+          threshold = rand.NextDouble() * rangeLen
           output = 0.
           weights = Array.init inputs (fun _ -> rand.NextDouble() * rangeLen  ) }
-    
-    let compute (neuron : Neuron) (input : float array) = 
+
+    let compute (neuron : Neuron) (input : float array) =
         let weigths = neuron.weights
         [ 0..neuron.inputsCount - 1 ] |> Seq.fold (fun s i -> s + abs (weigths.[i] - input.[i])) 0.
 
-    let computeActivation (neuron : Neuron) (input:float array) alpha (activationF:float -> float -> float) = 
+    let computeActivation (neuron : Neuron) (input:float array) alpha (activationF:float -> float -> float) =
         let total = neuron.weights |> Array.zip(input) |> Array.sumBy(fun (a,b) -> a * b)
         let total = total + neuron.threshold
         let output = activationF alpha total
@@ -125,18 +125,18 @@ module Neuron =
 
 /// A layer represents a collection of neurons
 //[<Struct>]
-type Layer = 
-    { 
+type Layer =
+    {
       neuronsCount : int
       inputsCount : int
       neurons : Neuron array
-      output : float array 
+      output : float array
     }
     member this.item n = this.neurons |> Array.item n
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Layer =
-    let create neuronsCount inputsCount = 
+    let create neuronsCount inputsCount =
         let neuronsCount = max 1 neuronsCount
         { neuronsCount = neuronsCount
           inputsCount = inputsCount
@@ -147,7 +147,7 @@ module Layer =
           #endif
           output = Array.zeroCreate<float> neuronsCount }
 
-    /// Compute output vector of the layer     
+    /// Compute output vector of the layer
     let compute (inputs : float array) (layer : Layer) =
         let neuronsCount = layer.neuronsCount
 
@@ -156,7 +156,7 @@ module Layer =
         #else
         let output = Array.init neuronsCount (fun i -> Neuron.compute layer.neurons.[i] inputs)
         #endif
-                
+
         { layer with output = output }
 
     let getLayerOutputs layer =
@@ -169,7 +169,7 @@ type Connection = { toNeuron:Neuron
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix )>]
 module Connection =
     let create toNeuron fromNeuron =
-        {   
+        {
             toNeuron = toNeuron
             fromNeuron = fromNeuron
             weight = rand.NextDouble() * 0.5
@@ -182,22 +182,22 @@ module Connection =
 
 
 //[<Struct>]
-type Network = 
-    { 
+type Network =
+    {
       inputsCount : int
       layersCount : int
-      layers : Layer array      
+      layers : Layer array
       ouputLayer : Layer
       activation : Activation
-      output : float array 
-    } 
+      output : float array
+    }
     member this.item n = this.layers |> Array.item n
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Network =
-    let create inputsCount layersCount = 
+    let create inputsCount layersCount =
         let layers = Array.init layersCount (fun _ -> Layer.create layersCount inputsCount)
-        { 
+        {
           inputsCount = inputsCount
           layersCount = layersCount
           layers = layers
@@ -207,37 +207,37 @@ module Network =
         }
 
     let computeLayers (network : Network) (input : float array) =
-        #if PARALLEL 
+        #if PARALLEL
         let layers = network.layers |> Array.Parallel.map(Layer.compute input)
         #else
         let layers = network.layers |> Array.map(Layer.compute input)
         #endif
         { network with layers = layers; ouputLayer = layers |> Array.last ; output = (layers |> Array.last).output }
-        
-    let computeOutputLayer (network : Network) (input : float array) = 
+
+    let computeOutputLayer (network : Network) (input : float array) =
         let layer = network.ouputLayer |> Layer.compute input
         { network with ouputLayer = layer ; output = layer.output }
-        
-    let foundBestOutput (network : Network) = 
+
+    let foundBestOutput (network : Network) =
         let output = network.ouputLayer.output |> Array.toList
         [ 0..output.Length - 1 ]
         |> Seq.zip (output)
         |> Seq.minBy (fun (n, _) -> n)
         |> snd
 
-   
-//    [<Struct>] 
-type ElasticNetworkLearning =  
+
+//    [<Struct>]
+type ElasticNetworkLearning =
     { learningRate : float
       learningRadius : float
       squaredRadius : float
       distance : float array
       network : Network }
-    
+
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module NetworkLearning =
-    let create (network : Network) = 
+    let create (network : Network) =
         let neuronsCount = network.ouputLayer.neuronsCount
         let delta = Math.PI * 2.0 / (float neuronsCount)
 
@@ -255,16 +255,16 @@ module NetworkLearning =
           distance = initDistance 0 delta []
           network = network }
 
-    
-    let setLearningRate learningRate (learning : ElasticNetworkLearning) = 
+
+    let setLearningRate learningRate (learning : ElasticNetworkLearning) =
         { learning with learningRate = max 0. (min 1. learningRate) }
-    
-    let setLearningRadius learningRadius (learning : ElasticNetworkLearning) = 
+
+    let setLearningRadius learningRadius (learning : ElasticNetworkLearning) =
         let learningRadius = max 0. (min 1. learningRadius)
         { learning with learningRadius = learningRadius
                         squaredRadius = 2. * learningRadius * learningRadius }
-    
-    let compute (learning : ElasticNetworkLearning) (input : float array) = 
+
+    let compute (learning : ElasticNetworkLearning) (input : float array) =
         let learningRate = learning.learningRate
         let network = Network.computeOutputLayer learning.network input
         let bestNetwork = Network.foundBestOutput network
@@ -289,7 +289,7 @@ module NetworkLearning =
 module TravelingSantaProblem =
 
     type TravelingSantaProblem(neurons:int, learningRate:float, cities:(float*float)[]) =
-        
+
         let asyncSeq = FSharp.Control.AsyncSeq.AsyncSeqBuilder()
 
         let foundBestPath iterations = asyncSeq {
@@ -297,44 +297,44 @@ module TravelingSantaProblem =
             let trainer = NetworkLearning.create network
             let fixedLearningRate = learningRate / 20.
             let driftingLearningRate = fixedLearningRate * 19.
-            let input = Array.zeroCreate<float> 2           
+            let input = Array.zeroCreate<float> 2
             let iterations = float iterations
             let citiesCount = cities.Length
-            let lenNeurons = neurons 
-            let path = Array.zeroCreate<(float * float)> (lenNeurons + 1) 
+            let lenNeurons = neurons
+            let path = Array.zeroCreate<(float * float)> (lenNeurons + 1)
 
-            let getNeuronWeight (trainer:ElasticNetworkLearning) n w = 
+            let getNeuronWeight (trainer:ElasticNetworkLearning) n w =
                 (trainer.network.ouputLayer.item n).item w
 
             for i = 0 to (int iterations - 1) do
-            
+
                 let learningRateUpdated = driftingLearningRate * (iterations - float i) / iterations + fixedLearningRate
                 let trainer = NetworkLearning.setLearningRate learningRateUpdated trainer
                 let learningRadiusUpdated = trainer.learningRadius * (iterations - float i) / iterations
                 let trainer = NetworkLearning.setLearningRadius learningRadiusUpdated trainer
-         
+
                 let currentStep = rand.Next(citiesCount)
                 input.[0] <- cities.[currentStep] |> fst
                 input.[1] <- cities.[currentStep] |> snd
                 let trainer = NetworkLearning.compute trainer input
-            
+
                 #if PARALLEL
                 let path = Array.Parallel.init (lenNeurons) (
-                                          fun j -> if j = lenNeurons - 1 
+                                          fun j -> if j = lenNeurons - 1
                                                    then ((trainer.network.item 0).item 0).item 0, ((trainer.network.item 0).item 0).item 1
                                                    else ((trainer.network.item 0).item j).item 0, ((trainer.network.item 0).item j).item 1)
                 #else
 
-                let getNeuronWeight = getNeuronWeight trainer 
-            
+                let getNeuronWeight = getNeuronWeight trainer
+
                 for j = 0 to lenNeurons - 1 do
                     path.[j] <- getNeuronWeight j 0 , getNeuronWeight j 1
                 path.[lenNeurons] <-  getNeuronWeight 0 0, getNeuronWeight 0 1
-            
+
                 #endif
-                
-            
-                if i % 100 = 0 then  
+
+
+                if i % 100 = 0 then
                     yield (i - 1 , path)
                     do! Async.Sleep 5
                 yield ((int iterations - 1), path)
@@ -344,39 +344,39 @@ module TravelingSantaProblem =
 
 open TravelingSantaProblem
 
-type MainViewModel() as this = 
+type MainViewModel() as this =
     inherit ViewModelBase()
 
 
     let mutable cts = new CancellationTokenSource()
 
-    let pathStream = Event<(float * float)[]>() 
-    let pathObs = 
+    let pathStream = Event<(float * float)[]>()
+    let pathObs =
         pathStream.Publish |> Observable.map(id)
 
-    let pointsStream = Event<(float * float)[]>() 
-    
-    let pointsObs = 
+    let pointsStream = Event<(float * float)[]>()
+
+    let pointsObs =
         pointsStream.Publish |> Observable.map id
-        
-    
+
+
     let cities = this.Factory.Backing(<@ this.Cities @>, 100)
     let iterations = this.Factory.Backing(<@ this.Iterations @>, 25000)
-    
+
     let neurons = this.Factory.Backing(<@ this.Neurons @>, 80)
-    
+
     let learningRate = this.Factory.Backing(<@ this.LearningRate @>, 0.5)
 
     let currentIterations = this.Factory.Backing(<@ this.CurrentIterations @>, 0)
     let executionTime = this.Factory.Backing(<@ this.ExecutionTime @>, "")
     do mapAgent.PostAndReply(fun ch -> SetMap(cities.Value, ch)) |> pointsStream.Trigger
-   
+
     let livePathChart = LiveChart.Line(pathObs)
     let livePointsChart = LiveChart.Point(pointsObs)
 
     let chartCombine = Chart.Combine([livePointsChart; livePathChart]).WithYAxis(Enabled=false).WithXAxis(Enabled=false)
     let chart = new ChartControl(chartCombine)
-    let host = new WindowsFormsHost(Child = chart)    
+    let host = new WindowsFormsHost(Child = chart)
     let hostChart = this.Factory.Backing(<@ this.Chart @>, host)
 
     let initControls n =
@@ -385,13 +385,13 @@ type MainViewModel() as this =
         pointsStream.Trigger [||]
         mapAgent.PostAndReply(fun ch -> SetMap(n, ch)) |> pointsStream.Trigger
 
-    let updateCtrl ui i (points : (float * float)[]) = async { 
+    let updateCtrl ui i (points : (float * float)[]) = async {
         do! Async.SwitchToContext ui
         this.CurrentIterations <- (i + 1)
-        pathStream.Trigger points 
+        pathStream.Trigger points
         }
-        
-    let onCancel _ =        
+
+    let onCancel _ =
         this.CurrentIterations <- 0
         this.ExecutionTime <- ""
         pathStream.Trigger [||]
@@ -402,54 +402,53 @@ type MainViewModel() as this =
     let cancelClear () =
         cts.Cancel()
 
-    let cancel = 
+    let cancel =
         this.Factory.CommandSyncChecked(cancelClear, (fun _ -> this.OperationExecuting), [ <@@ this.OperationExecuting @@> ])
 
-    let initPoints = 
+    let initPoints =
         this.Factory.CommandSyncParamChecked(initControls, (fun _ -> not this.OperationExecuting), [ <@@ this.OperationExecuting @@> ])
 
-    let start = 
+    let start =
         this.Factory.CommandAsync((fun ui -> async { let time = System.Diagnostics.Stopwatch.StartNew()
                                                      let updateControl = updateCtrl ui
                                                      let! cities = mapAgent.PostAndAsyncReply(fun ch -> GetMap(cities.Value, ch))
-                                                     
-                                                     let tsp = TravelingSantaProblem(neurons.Value,learningRate.Value,cities)                                                         
+
+                                                     let tsp = TravelingSantaProblem(neurons.Value,learningRate.Value,cities)
                                                      for (i, path) in tsp.Execute (iterations.Value) do
                                                            do! updateControl i path
                                                      this.ExecutionTime <- sprintf "Time %d ms" time.ElapsedMilliseconds}), token=cts.Token, onCancel=onCancel)
     do initControls (cities.Value)
 
-    member this.Chart 
+    member this.Chart
         with get () = hostChart.Value
         and set value = hostChart.Value <- value
-    
-    member this.Cities 
+
+    member this.Cities
         with get () = cities.Value
         and set value = cities.Value <- value
-    
-    member this.Neurons 
+
+    member this.Neurons
         with get () = neurons.Value
         and set value = neurons.Value <- value
-    
-    member this.LearningRate 
+
+    member this.LearningRate
         with get () = learningRate.Value
         and set value = learningRate.Value <- value
-    
-    member this.Iterations 
+
+    member this.Iterations
         with get () = iterations.Value
         and set value = iterations.Value <- value
 
-    member this.CurrentIterations 
+    member this.CurrentIterations
         with get () = currentIterations.Value
         and set value = currentIterations.Value <- value
 
-    member this.ExecutionTime 
+    member this.ExecutionTime
         with get () = executionTime.Value
         and set value = executionTime.Value <- value
-                    
+
     member this.InitPointsCommand = initPoints
     member this.StartCommand : IAsyncNotifyCommand = start
     member this.CancelCommand = cancel
 
 
-    

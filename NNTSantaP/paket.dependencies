@@ -1,0 +1,11 @@
+source https://api.nuget.org/v3/index.json
+framework: net461
+
+nuget Expression.Blend.Sdk
+nuget FSharp.Charting
+nuget FSharp.Collections.ParallelSeq
+nuget FSharp.Control.AsyncSeq
+nuget FSharp.Control.Reactive
+nuget FSharp.ViewModule.Core
+nuget FsXaml.Wpf
+nuget PerfUtil
