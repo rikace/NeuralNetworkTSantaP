@@ -10,4 +10,4 @@ open System.Windows.Forms.Integration
 type MainWindowBase = XAML<"MainWindow.xaml">
 
 type MainWindow() =
-    inherit MainWindowBase()       
+    inherit MainWindowBase()

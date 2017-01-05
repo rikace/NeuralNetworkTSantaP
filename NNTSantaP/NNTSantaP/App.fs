@@ -10,11 +10,11 @@ type App = XAML<"App.xaml">
 
 [<STAThread>]
 [<EntryPoint>]
-let main argv = 
+let main argv =
 
-//    let random = new Random(int DateTime.Now.Ticks)    
+//    let random = new Random(int DateTime.Now.Ticks)
 //    let ``500 cities`` = Array.init 500 (fun _ -> random.Next(1001) |> float, random.Next(1001) |> float)
-//    
+//
 //    let tsp = TravelingSalesmanProblem.TravelingSalesmanProblem(100, 0.3, ``500 cities``)
 //    let sw = System.Diagnostics.Stopwatch.StartNew()
 //    tsp.Execute(30000)
@@ -22,10 +22,10 @@ let main argv =
 //    |> Async.RunSynchronously
 //    |> ignore
 //    printfn "Time : %d ms to execute %d iterations with %d neurons and %d cities" sw.ElapsedMilliseconds iterations neurons cities.Length
-//    Console.WriteLine("End")                 
-//    Console.ReadLine() |> ignore                                          
+//    Console.WriteLine("End")
+//    Console.ReadLine() |> ignore
 //    0
 
     Wpf.installSynchronizationContext ()
     Views.MainWindow()
-    |> App().Run 
+    |> App().Run
