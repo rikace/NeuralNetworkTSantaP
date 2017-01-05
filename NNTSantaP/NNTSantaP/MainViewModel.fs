@@ -1,25 +1,18 @@
 ﻿namespace ViewModels
 
-
 open System
 open System.Threading
-open System.Collections.ObjectModel
-open System.Windows
-open System.Windows.Input
-open FsXaml
 open FSharp.ViewModule
 open FSharp.Charting
 open FSharp.Charting.ChartTypes
-open System.Windows
 open System.Windows.Forms.Integration
-open System.Threading.Tasks
-open FSharp.Collections.ParallelSeq
 open FSharp.Control
 open FSharp.Control.Reactive
 
 
 [<AutoOpen>]
 module Utilities =
+    let [<Literal>] rangeLen = 1000.
     let rand = new Random(int DateTime.Now.Ticks)
 
     type RandMessage =
@@ -28,17 +21,16 @@ module Utilities =
 
     let mapAgent =
         MailboxProcessor.Start(fun inbox ->
-            let random = new Random(int DateTime.Now.Ticks)
-            let initMap n = Array.init n (fun _ -> random.Next(1001) |> float, random.Next(1001) |> float)
-            let rec loop map =
+            let initMap n = Array.init n (fun _ -> rand.NextDouble()*rangeLen, rand.NextDouble()*rangeLen)
+            let rec loop (map:(float*float)[]) =
                 async {
                     let! msg = inbox.Receive()
                     match msg with
                     | GetMap(n, reply) ->
                         let map =
                             match map with
-                            | [||] -> initMap n
-                            | _ -> map
+                            | x when n = x.Length -> map
+                            | _ -> initMap n
                         reply.Reply(map)
                         return! loop map
                     | SetMap(n, reply) ->
@@ -48,98 +40,38 @@ module Utilities =
                 }
             loop (initMap 0))
 
-module ActivationFunction =
-    ///                2
-    /// f(x) = ------------------ - 1
-    ///        1 + exp(-alpha * x)
-    let bipolarSigmoidFunction (alpha:float) n = (2. / ( 1. + exp( -alpha * n ))) - 1.
-
-    ///           2 * alpha * exp(-alpha * x )
-    /// f'(x) = -------------------------------- = alpha * (1 - f(x)^2) / 2
-    ///           (1 + exp(-alpha * x))^2
-    let bipolarSigmoidDerivative (alpha:float) n =
-        let y = bipolarSigmoidFunction alpha n
-        alpha * ( 1. - y * y ) / 2.
-
-    ///                1
-    /// f(x) = ------------------
-    ///        1 + exp(-alpha * x)
-    let sigmoidFunction (alpha:float) n = 1. / ( 1. + exp( -alpha * n ))
-
-    ///           alpha * exp(-alpha * x )
-    /// f'(x) = ---------------------------- = alpha * f(x) * (1 - f(x))
-    ///           (1 + exp(-alpha * x))^2
-    let sigmoidDerivative (alpha:float) n =
-        let y = sigmoidFunction alpha n
-        alpha * y * (1. - y)
-
-    /// f(x) = 1, if x >= 0, otherwise 0
-    let thresholdFunction n = if n >= 0 then 1 else 0
-
-type Activation = { Function : float -> float -> float
-                    Derivative : float -> float -> float
-                    RandomWeight : unit -> float }
-
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix )>]
-module Activation =
-    let rand = new Random(int DateTime.Now.Ticks)
-
-    let public sigmoidActivation =
-       { Function =ActivationFunction.sigmoidFunction
-         Derivative = ActivationFunction.sigmoidDerivative
-         RandomWeight = (fun () -> rand.NextDouble())    }
-
-    let public bipolarSigmoidActivation =
-       { Function =ActivationFunction.bipolarSigmoidFunction
-         Derivative = ActivationFunction.bipolarSigmoidDerivative
-         RandomWeight = (fun () -> rand.NextDouble())    }
-
 //[<Struct>]
 type Neuron =
-    { inputsCount : int
-      output:float
-      threshold:float
-      weights : float array }
+    { weights : float[]
+      output  : float }
+    member this.inputsCount = this.weights.Length
     member this.item n = this.weights |> Array.item n
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix )>]
 module Neuron =
-    let [<Literal>] private rangeLen = 1000.
-
     let create (inputs : int) =
-        let inputs = max 1 inputs
-        { inputsCount = inputs
-          threshold = rand.NextDouble() * rangeLen
-          output = 0.
-          weights = Array.init inputs (fun _ -> rand.NextDouble() * rangeLen  ) }
+        { output = 0.
+          weights = Array.init (max 1 inputs) (fun _ -> rand.NextDouble() * rangeLen  ) }
 
-    let compute (neuron : Neuron) (input : float array) =
-        let weigths = neuron.weights
-        [ 0..neuron.inputsCount - 1 ] |> Seq.fold (fun s i -> s + abs (weigths.[i] - input.[i])) 0.
+    let compute (neuron : Neuron) (input : float[]) =
+        neuron.weights
+        |> Seq.zip input
+        |> Seq.sumBy (fun (a,b) -> abs(a-b))
 
-    let computeActivation (neuron : Neuron) (input:float array) alpha (activationF:float -> float -> float) =
-        let total = neuron.weights |> Array.zip(input) |> Array.sumBy(fun (a,b) -> a * b)
-        let total = total + neuron.threshold
-        let output = activationF alpha total
-        { neuron with output = output}
 
 /// A layer represents a collection of neurons
 //[<Struct>]
 type Layer =
-    {
-      neuronsCount : int
-      inputsCount : int
-      neurons : Neuron array
-      output : float array
-    }
+    { neurons : Neuron[]
+      output  : float[] }
+    member this.neuronsCount = this.neurons.Length
     member this.item n = this.neurons |> Array.item n
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Layer =
     let create neuronsCount inputsCount =
         let neuronsCount = max 1 neuronsCount
-        { neuronsCount = neuronsCount
-          inputsCount = inputsCount
+        {
           #if PARALLEL
           neurons = Array.Parallel.init neuronsCount (fun i -> Neuron.create inputsCount)
           #else
@@ -159,74 +91,25 @@ module Layer =
 
         { layer with output = output }
 
-    let getLayerOutputs layer =
-        seq{ for neuron in layer.neurons do yield neuron.output}
-
-type Connection = { toNeuron:Neuron
-                    fromNeuron:Neuron
-                    weight:float }
-
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix )>]
-module Connection =
-    let create toNeuron fromNeuron =
-        {
-            toNeuron = toNeuron
-            fromNeuron = fromNeuron
-            weight = rand.NextDouble() * 0.5
-        }
-
-    let connectLayers (nextLayer:Layer) (neurons:Neuron array) = seq {
-        for neuron in neurons do
-            for layerNeuron in nextLayer.neurons do
-                yield create neuron layerNeuron }
-
-
 //[<Struct>]
-type Network =
-    {
-      inputsCount : int
-      layersCount : int
-      layers : Layer array
-      ouputLayer : Layer
-      activation : Activation
-      output : float array
-    }
-    member this.item n = this.layers |> Array.item n
+type Network = Layer // Single hidden layer
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Network =
-    let create inputsCount layersCount =
-        let layers = Array.init layersCount (fun _ -> Layer.create layersCount inputsCount)
-        {
-          inputsCount = inputsCount
-          layersCount = layersCount
-          layers = layers
-          ouputLayer = layers |> Array.last
-          activation = Activation.sigmoidActivation
-          output = [||]
-        }
+    let create inputsCount neuronsCount =
+        Layer.create neuronsCount inputsCount
 
-    let computeLayers (network : Network) (input : float array) =
-        #if PARALLEL
-        let layers = network.layers |> Array.Parallel.map(Layer.compute input)
-        #else
-        let layers = network.layers |> Array.map(Layer.compute input)
-        #endif
-        { network with layers = layers; ouputLayer = layers |> Array.last ; output = (layers |> Array.last).output }
+    let compute (network : Network) (input : float array) =
+        network |> Layer.compute input
 
-    let computeOutputLayer (network : Network) (input : float array) =
-        let layer = network.ouputLayer |> Layer.compute input
-        { network with ouputLayer = layer ; output = layer.output }
-
-    let foundBestOutput (network : Network) =
-        let output = network.ouputLayer.output |> Array.toList
-        [ 0..output.Length - 1 ]
-        |> Seq.zip (output)
-        |> Seq.minBy (fun (n, _) -> n)
+    let findBestOutput (network : Network) =
+        network.output
+        |> Seq.mapi (fun i o -> (o,i))
+        |> Seq.minBy id
         |> snd
 
 
-//    [<Struct>]
+//[<Struct>]
 type ElasticNetworkLearning =
     { learningRate : float
       learningRadius : float
@@ -238,7 +121,7 @@ type ElasticNetworkLearning =
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module NetworkLearning =
     let create (network : Network) =
-        let neuronsCount = network.ouputLayer.neuronsCount
+        let neuronsCount = network.neuronsCount
         let delta = Math.PI * 2.0 / (float neuronsCount)
 
         let rec initDistance i alpha acc =
@@ -255,7 +138,6 @@ module NetworkLearning =
           distance = initDistance 0 delta []
           network = network }
 
-
     let setLearningRate learningRate (learning : ElasticNetworkLearning) =
         { learning with learningRate = max 0. (min 1. learningRate) }
 
@@ -266,9 +148,9 @@ module NetworkLearning =
 
     let compute (learning : ElasticNetworkLearning) (input : float array) =
         let learningRate = learning.learningRate
-        let network = Network.computeOutputLayer learning.network input
-        let bestNetwork = Network.foundBestOutput network
-        let layer = network.ouputLayer
+        let network = Network.compute learning.network input
+        let bestNeuronId = Network.findBestOutput network
+        let layer = network // Just single hidden layer in network
 
         #if PARALLEL
         System.Threading.Tasks.Parallel.For(0, layer.neuronsCount - 1, fun j ->
@@ -276,7 +158,7 @@ module NetworkLearning =
         for j = 0 to layer.neuronsCount - 1 do
         #endif
             let neuron = layer.item j
-            let factor = exp (-learning.distance.[abs (j - bestNetwork)] / learning.squaredRadius)
+            let factor = exp (-learning.distance.[abs (j - bestNeuronId)] / learning.squaredRadius)
             for i = 0 to neuron.inputsCount - 1 do
                 let e = (input.[i] - neuron.item i) * factor
                 neuron.weights.[i] <- neuron.weights.[i] + (e + learningRate)
@@ -304,7 +186,7 @@ module TravelingSantaProblem =
             let path = Array.zeroCreate<(float * float)> (lenNeurons + 1)
 
             let getNeuronWeight (trainer:ElasticNetworkLearning) n w =
-                (trainer.network.ouputLayer.item n).item w
+                (trainer.network.item n).item w
 
             for i = 0 to (int iterations - 1) do
 
