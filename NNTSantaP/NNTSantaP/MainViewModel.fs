@@ -203,8 +203,8 @@ module TravelingSantaProblem =
                 #if PARALLEL
                 let path = Array.Parallel.init (lenNeurons) (
                                           fun j -> if j = lenNeurons - 1
-                                                   then ((trainer.network.item 0).item 0).item 0, ((trainer.network.item 0).item 0).item 1
-                                                   else ((trainer.network.item 0).item j).item 0, ((trainer.network.item 0).item j).item 1)
+                                                   then ((trainer.network.item 0).item 0), ((trainer.network.item 0).item 1)
+                                                   else ((trainer.network.item j).item 0), ((trainer.network.item j).item 1))
                 #else
 
                 let getNeuronWeight = getNeuronWeight trainer
