@@ -8,14 +8,14 @@
         xmlns:wf="clr-namespace:System.Windows.Forms;assembly=System.Windows.Forms"
         xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
 
-		Title="MainWindow" Height="500" Width="750" WindowStartupLocation="CenterScreen">
+		Title="Traveling Santa Problem Solver" Height="600" Width="800" WindowStartupLocation="CenterScreen">
     <Window.DataContext>
         <vms:MainViewModel />
     </Window.DataContext>
     <Grid Name="MainGrid">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="7*"/>
-            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="8*"/>
+            <ColumnDefinition Width="2*"/>
         </Grid.ColumnDefinitions>
 
         <Grid Grid.Column="0" Margin="5">
@@ -60,6 +60,10 @@
                 <RowDefinition Height="40"/>
                 <RowDefinition Height="40"/>
                 <RowDefinition Height="40"/>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="40"/>
             </Grid.RowDefinitions>
 
 
@@ -78,9 +82,16 @@
             <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding LearningRate}" />
 
             <Button Grid.Row="5" Grid.ColumnSpan="2" Command="{Binding InitPointsCommand}" CommandParameter="{Binding Cities}" >Initialize</Button>
-            <Button Grid.Row="6" Grid.ColumnSpan="2" Command="{Binding StartCommand}">Start</Button>
-            <Button Grid.Row="7" Grid.ColumnSpan="2" Command="{Binding CancelCommand}" CommandParameter="{Binding Cities}" >Cancel</Button>
+            <Button Grid.Row="6" Grid.ColumnSpan="2" Command="{Binding StartElasticCommand}">Start ElasticNN</Button>
+            <Button Grid.Row="7" Grid.ColumnSpan="2" Command="{Binding StartKniesCommand}">Start KNIES</Button>
 
+            <Label Grid.Row="8" Grid.Column="0">Clusters</Label>
+            <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding Clusters}" />
+
+            <Button Grid.Row="9" Grid.ColumnSpan="2" Command="{Binding StartElasticInParallelCommand}">Start ElasticNN in Parallel</Button>
+            <Button Grid.Row="10" Grid.ColumnSpan="2" Command="{Binding StartKniesInParallelCommand}">Start KNIES in Parallel</Button>
+
+            <Button Grid.Row="11" Grid.ColumnSpan="2" Command="{Binding CancelCommand}" CommandParameter="{Binding Cities}" >Cancel</Button>
 
         </Grid>
     </Grid>
